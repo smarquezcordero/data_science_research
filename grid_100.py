@@ -135,18 +135,18 @@ class Test_Experiment:
  #       return pd.DataFrame(rows)
     
 
-exp_20x25 = Test_Experiment(
+exp_200x25 = Test_Experiment(
     positions=positions,
     infected_set=S,
-    test_size=25,
-    label="Test size of 25",
+    test_size=200,
+    label="Test size of 200",
     seed=1
 )
 
 
 
-exp_20x25.run()
-exp_20x25.print_progress()
+exp_200x25.run()
+exp_200x25.print_progress()
 
 
 
@@ -157,9 +157,9 @@ exp_20x25.print_progress()
  #   df_20x25.to_excel(writer, sheet_name="20x25", index=False)
   #  df_20x29.to_excel(writer, sheet_name="20x29", index=False)
 
-for h in exp_20x25.history[::500]:
+for h in exp_200x25.history[::500]:
     print(h)
 
 
-print(exp_20x25.print_progress())
-print(exp_20x25.summary())
+print(exp_200x25.print_progress())
+print(exp_200x25.summary())
