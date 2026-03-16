@@ -253,7 +253,74 @@ class Test_Experiment:
             print(f"Min size: {min(sample)}")
             print(f"Max size: {max(sample)}")
         
-    
+    def plot_combined_analysis(df):
+
+        df["FP_Ratio"] = df["Final_FP"] / df["Defective_Size"]
+
+        algorithms = df["Algorithm"].unique()
+
+        fig, axes = plt.subplots(3, 3, figsize=(18, 15))
+
+        for col, algo in enumerate(algorithms):
+
+            subset = df[df["Algorithm"] == algo]
+
+            # --- Row 1: Total Tests vs Defective Size ---
+            ax = axes[0, col]
+
+            for t in sorted(df["Test_Size"].unique())[:4]:
+                t_data = subset[subset["Test_Size"] == t]
+
+                ax.plot(
+                    t_data["Defective_Size"],
+                    t_data["Total_Tests"],
+                    marker="o",
+                    label=f"t={t}"
+                )
+
+            ax.set_title(algo)
+            ax.set_xlabel("Defective Size")
+            ax.set_ylabel("Total Tests")
+            ax.legend()
+
+            # --- Row 2: Total Tests vs Test Size ---
+            ax = axes[1, col]
+
+            for d in sorted(df["Defective_Size"].unique()):
+                d_data = subset[subset["Defective_Size"] == d]
+
+                ax.plot(
+                    d_data["Test_Size"],
+                    d_data["Total_Tests"],
+                    marker="o",
+                    label=f"d={d}"
+                )
+
+            ax.set_xlabel("Test Size")
+            ax.set_ylabel("Total Tests")
+            ax.legend()
+
+            # --- Row 3: FP Ratio vs Test Size ---
+            ax = axes[2, col]
+
+            for d in sorted(df["Defective_Size"].unique()):
+                d_data = subset[subset["Defective_Size"] == d]
+
+                ax.plot(
+                    d_data["Test_Size"],
+                    d_data["FP_Ratio"],
+                    marker="o",
+                    label=f"d={d}"
+                )
+
+            ax.set_xlabel("Test Size")
+            ax.set_ylabel("FP / Defective Size")
+            ax.legend()
+
+        plt.suptitle("Group Testing Algorithm Comparison", fontsize=16)
+        plt.tight_layout()
+        plt.show()
+
     def plot_rectangle_size_distribution(self):
 
         all_sizes = [
@@ -305,6 +372,173 @@ class Test_Experiment:
         plt.title("False positives vs Number of tests")
         plt.legend()
 
+def plot_defective_vs_tests(df):
+
+    test_sizes = sorted(df["Test_Size"].unique())
+
+    fig, axes = plt.subplots(2, 2, figsize=(12,10))
+    axes = axes.flatten()
+
+    for ax, t_size in zip(axes, test_sizes[:4]):   # first 4 plots
+
+        subset = df[df["Test_Size"] == t_size]
+
+        for algo in subset["Algorithm"].unique():
+
+            algo_data = subset[subset["Algorithm"] == algo]
+
+            ax.plot(
+                algo_data["Defective_Size"],
+                algo_data["Total_Tests"],
+                marker="o",
+                label=algo
+            )
+
+        ax.set_title(f"Test Size = {t_size}")
+        ax.set_xlabel("Defective Size")
+        ax.set_ylabel("Total Tests")
+        ax.legend()
+        ax.set_yscale("log")
+
+    plt.suptitle("Total Tests vs Defective Size")
+    plt.tight_layout()
+    plt.show()
+
+def plot_testsize_vs_tests(df):
+
+    algorithms = df["Algorithm"].unique()
+
+    fig, axes = plt.subplots(1, 3, figsize=(18,5), sharey=True)
+
+    for ax, algo in zip(axes, algorithms):
+
+        subset = df[df["Algorithm"] == algo]
+
+        for d in sorted(df["Defective_Size"].unique()):
+
+            d_data = subset[subset["Defective_Size"] == d]
+
+            ax.plot(
+                d_data["Test_Size"],
+                d_data["Total_Tests"],
+                marker="o",
+                label=f"d={d}"
+            )
+
+        ax.set_title(algo)
+        ax.set_xlabel("Test Size")
+        ax.set_ylabel("Total Tests")
+        ax.legend()
+        ax.set_yscale("log")
+
+    plt.suptitle("Total Tests vs Test Size")
+    plt.tight_layout()
+    plt.show()
+
+def plot_fp_ratio_vs_testsize(df):
+
+    # Create FP ratio column
+    df["FP_Ratio"] = df["Final_FP"] / df["Defective_Size"]
+
+    algorithms = df["Algorithm"].unique()
+
+    fig, axes = plt.subplots(1, 3, figsize=(18,5), sharey=True)
+
+    for ax, algo in zip(axes, algorithms):
+
+        subset = df[df["Algorithm"] == algo]
+
+        for d in sorted(df["Defective_Size"].unique()):
+
+            d_data = subset[subset["Defective_Size"] == d]
+
+            ax.plot(
+                d_data["Test_Size"],
+                d_data["FP_Ratio"],
+                marker="o",
+                label=f"d={d}"
+            )
+
+        ax.set_title(algo)
+        ax.set_xlabel("Test Size")
+        ax.set_ylabel("FP / Defective Size")
+        ax.legend()
+        ax.set_yscale("log")
+
+    plt.suptitle("False Positive Ratio vs Test Size")
+    plt.tight_layout()
+    plt.show()
+
+def plot_combined_analysis(df):
+
+    df["FP_Ratio"] = df["Final_FP"] / df["Defective_Size"]
+
+    algorithms = df["Algorithm"].unique()
+
+    fig, axes = plt.subplots(3, 3, figsize=(18, 15))
+
+    for col, algo in enumerate(algorithms):
+
+        subset = df[df["Algorithm"] == algo]
+
+        # --- Row 1: Total Tests vs Defective Size ---
+        ax = axes[0, col]
+
+        for t in sorted(df["Test_Size"].unique())[:4]:
+            t_data = subset[subset["Test_Size"] == t]
+
+            ax.plot(
+                t_data["Defective_Size"],
+                t_data["Total_Tests"],
+                marker="o",
+                label=f"t={t}"
+            )
+
+        ax.set_title(algo)
+        ax.set_xlabel("Defective Size")
+        ax.set_ylabel("Total Tests")
+        ax.legend()
+        ax.set_yscale("log")
+
+        # --- Row 2: Total Tests vs Test Size ---
+        ax = axes[1, col]
+
+        for d in sorted(df["Defective_Size"].unique()):
+            d_data = subset[subset["Defective_Size"] == d]
+
+            ax.plot(
+                d_data["Test_Size"],
+                d_data["Total_Tests"],
+                marker="o",
+                label=f"d={d}"
+            )
+
+        ax.set_xlabel("Test Size")
+        ax.set_ylabel("Total Tests")
+        ax.legend()
+        ax.set_yscale("log")
+
+        # --- Row 3: FP Ratio vs Test Size ---
+        ax = axes[2, col]
+
+        for d in sorted(df["Defective_Size"].unique()):
+            d_data = subset[subset["Defective_Size"] == d]
+
+            ax.plot(
+                d_data["Test_Size"],
+                d_data["FP_Ratio"],
+                marker="o",
+                label=f"d={d}"
+            )
+
+        ax.set_xlabel("Test Size")
+        ax.set_ylabel("FP / Defective Size")
+        ax.legend()
+
+    plt.suptitle("Group Testing Algorithm Comparison", fontsize=16)
+    plt.tight_layout()
+    plt.show()
+
 def run_full_experiment_suite(positions, defective_sizes, test_size):
 
     results_summary = []
@@ -337,7 +571,7 @@ def run_full_experiment_suite(positions, defective_sizes, test_size):
                 seed=1
             )
 
-            exp.run(mode=mode, strategy="eliminate_negatives", max_tests=50000)
+            exp.run(mode=mode, strategy="eliminate_negatives", max_tests=100000)
 
             results_summary.append({
                 "Algorithm": algo_name,
@@ -354,7 +588,7 @@ def run_full_experiment_suite(positions, defective_sizes, test_size):
 
     return results_summary, all_histories
 
-def save_summary_append(summary, filename="Test_Results_alg3_adjust.xlsx"):
+def save_summary_append(summary, filename="Test_Results_alg3_adjust_100000.xlsx"):
 
     import pandas as pd
     import os
@@ -441,7 +675,7 @@ def plot_fp_ratio_three_panel(
     positions,
     defective_sizes,
     strategy="eliminate_negatives",
-    max_tests=50000
+    max_tests=100000
 ):
 
     algorithm_configs = [
@@ -485,6 +719,7 @@ def plot_fp_ratio_three_panel(
 
         ax.set_title(config["title"])
         ax.set_xlabel("Number of Tests")
+        ax.set_ylim(0, 100)
         ax.legend()
 
     axes[0].set_ylabel("FP / Defective Size")
@@ -566,3 +801,9 @@ if __name__ == "__main__":
         )
 
         save_summary_append(summary)
+
+    df = pd.read_excel("Test_Results_alg3_adjust.xlsx", sheet_name="Raw_Data")
+    ##plot_defective_vs_tests(df)
+    ##plot_testsize_vs_tests(df)
+    ##plot_fp_ratio_vs_testsize(df)
+    plot_combined_analysis(df)
