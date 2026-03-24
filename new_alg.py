@@ -463,7 +463,6 @@ def plot_fp_ratio_vs_testsize(df):
         ax.set_xlabel("Test Size")
         ax.set_ylabel("FP / Defective Size")
         ax.legend()
-        ax.set_yscale("log")
 
     plt.suptitle("False Positive Ratio vs Test Size")
     plt.tight_layout()
@@ -588,7 +587,7 @@ def run_full_experiment_suite(positions, defective_sizes, test_size):
 
     return results_summary, all_histories
 
-def save_summary_append(summary, filename="Test_Results_alg3_adjust_100000.xlsx"):
+def save_summary_append(summary, filename="New_test_sizes.xlsx"):
 
     import pandas as pd
     import os
@@ -720,9 +719,10 @@ def plot_fp_ratio_three_panel(
         ax.set_title(config["title"])
         ax.set_xlabel("Number of Tests")
         ax.set_ylim(0, 100)
+        ax.set_xlim(0, 40000)
         ax.legend()
 
-    axes[0].set_ylabel("FP / Defective Size")
+    axes[0].set_ylabel("FP Ratio")
 
     plt.suptitle("FP Ratio vs Number of Tests")
     plt.tight_layout()
@@ -783,7 +783,7 @@ print(f"Algorithm 3 reached FP=0 at test: {res_rect_200}")
 if __name__ == "__main__":
 
     defective_sizes = [25, 50, 75, 100]
-    test_sizes = [100, 150, 200, 250, 300, 350, 400]
+    test_sizes = [25, 50, 75, 100, 150, 200]
 
     plot_fp_ratio_three_panel(
         positions=positions,
@@ -802,7 +802,7 @@ if __name__ == "__main__":
 
         save_summary_append(summary)
 
-    df = pd.read_excel("Test_Results_alg3_adjust.xlsx", sheet_name="Raw_Data")
+    df = pd.read_excel("New_test_sizes.xlsx", sheet_name="Raw_Data")
     ##plot_defective_vs_tests(df)
     ##plot_testsize_vs_tests(df)
     ##plot_fp_ratio_vs_testsize(df)
