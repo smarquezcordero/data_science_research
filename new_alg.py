@@ -587,7 +587,7 @@ def run_full_experiment_suite(positions, defective_sizes, test_size):
 
     return results_summary, all_histories
 
-def save_summary_append(summary, filename="New_test_sizes.xlsx"):
+def save_summary_append(summary, filename="complete_test_sizes.xlsx"):
 
     import pandas as pd
     import os
@@ -783,13 +783,13 @@ print(f"Algorithm 3 reached FP=0 at test: {res_rect_200}")
 if __name__ == "__main__":
 
     defective_sizes = [25, 50, 75, 100]
-    test_sizes = [25, 50, 75, 100, 150, 200]
+    test_sizes = [25, 50, 75, 100, 150, 200,250,300,350,400]
 
-    plot_fp_ratio_three_panel(
-        positions=positions,
-        defective_sizes=defective_sizes,
-        strategy="eliminate_negatives"
-    )
+    ##plot_fp_ratio_three_panel(
+    ##    positions=positions,
+    ##    defective_sizes=defective_sizes,
+    ##    strategy="eliminate_negatives"
+    ##)
     for test_size in test_sizes:
 
         print(f"\nRunning experiments for test size {test_size}")
@@ -802,7 +802,7 @@ if __name__ == "__main__":
 
         save_summary_append(summary)
 
-    df = pd.read_excel("New_test_sizes.xlsx", sheet_name="Raw_Data")
+    df = pd.read_excel("complete_test_sizes.xlsx", sheet_name="Raw_Data")
     ##plot_defective_vs_tests(df)
     ##plot_testsize_vs_tests(df)
     ##plot_fp_ratio_vs_testsize(df)
