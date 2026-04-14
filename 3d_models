@@ -1,0 +1,146 @@
+import numpy as np
+import random
+from collections import Counter
+import matplotlib.pyplot as plt
+
+def create_model_3d(size=20, num_ones=5, seed=1):
+
+    if seed is not None:
+        np.random.seed(seed)
+
+    grid = np.zeros((size, size, size), dtype=int)
+
+    indices = np.random.choice(size**3, num_ones, replace=False)
+
+    for idx in indices:
+        x = idx // (size*size)
+        y = (idx % (size*size)) // size
+        z = idx % size
+        grid[x, y, z] = 1
+
+    return grid
+
+
+def generate_positions_3d(size=20):
+
+    return [
+        (x+1, y+1, z+1)
+        for x in range(size)
+        for y in range(size)
+        for z in range(size)
+    ]
+
+def get_infected_set(grid):
+
+    size = grid.shape[0]
+
+    return {
+        (x+1, y+1, z+1)
+        for x in range(size)
+        for y in range(size)
+        for z in range(size)
+        if grid[x, y, z] == 1
+    }
+
+
+class TestExperiment3D:
+
+    def __init__(self, positions, infected_set, test_size=24, seed=1):
+
+        self.positions = positions
+        self.infected_set = infected_set
+        self.test_size = test_size
+
+        self.tests = []
+        self.history = []
+        self.candidates = set(positions)
+
+        random.seed(seed)
+        np.random.seed(seed)
+
+    def random_test(self):
+        # Sample from remaining candidates
+        return random.sample(
+            list(self.candidates),
+            min(self.test_size, len(self.candidates))
+        )
+
+    def classify(self, test):
+        return "positive" if any(p in self.infected_set for p in test) else "negative"
+
+    def run(self, max_tests=20000):
+
+        for t in range(1, max_tests + 1):
+
+            test = self.random_test()
+            result = self.classify(test)
+
+            # eliminate all in negative tests
+            if result == "negative":
+                self.candidates -= set(test)
+
+            false_pos = self.candidates - self.infected_set
+            false_neg = self.infected_set - self.candidates
+
+            fp_ratio = len(false_pos) / len(self.infected_set)
+
+            self.history.append({
+                "t": t,
+                "FP": len(false_pos),
+                "FN": len(false_neg),
+                "FP_ratio": fp_ratio
+            })
+
+            # stop condition
+            if fp_ratio < 2:
+                print(f"✅ FP ratio < 2 reached at test {t}")
+                break
+
+        return self.history
+
+    def fp_ratio(self):
+        return self.history[-1]["FP_ratio"]
+    
+    
+
+if __name__ == "__main__":
+
+    size = 20
+    defective_size = 5
+
+    positions = generate_positions_3d(size)
+
+    model = create_model_3d(size=size, num_ones=defective_size, seed=1)
+    infected_set = get_infected_set(model)
+
+    test_sizes = [16, 24, 32, 48]
+
+    plt.figure()
+
+    for t_size in test_sizes:
+
+        print(f"\nRunning test_size = {t_size}")
+
+        exp = TestExperiment3D(
+            positions=positions,
+            infected_set=infected_set,
+            test_size=t_size,
+            seed=1
+        )
+        history = exp.run()
+        tests = [h["t"] for h in history]
+        fp_ratios = [h["FP_ratio"] for h in history]
+        plt.plot(tests, fp_ratios, label=f"test size = {t_size}")
+
+        exp.run(max_tests=20000)
+
+        print(f"Tests used: {len(exp.history)}")
+        print(f"Final FP ratio: {exp.fp_ratio():.2f}")
+        print(f"Final candidates: {len(exp.candidates)}")
+    
+    plt.axhline(2)
+    plt.xlabel("Number of Tests")
+    plt.ylabel("False Positive Ratio")
+    plt.title("Effect of Test Size on FP Ratio")
+    plt.legend()
+    plt.show()

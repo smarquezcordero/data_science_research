@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import os
 import matplotlib.pyplot as plt
 import random
 from collections import Counter
@@ -142,7 +141,7 @@ class Test_Experiment:
         })
         return rectangle
     
-    def run(self, mode = "random", strategy="positive_minus_negative",max_tests = 150000):
+    def run(self, mode = "random", strategy="positive_minus_negative",max_tests = 50000):
             if self.seed is not None:
                   np.random.seed(self.seed)
 
@@ -218,7 +217,7 @@ class Test_Experiment:
             print(f"Final FP             : {self.history[-1]['false positives']}")
             print(f"Final FN             : {self.history[-1]['false negatives']}")
 
-    def print_progress(self, step=1000):
+    def print_progress(self, step=250):
         print("\nProgress snapshot:")
         print("Tests | FP | FN")
         print("-" * 20)
@@ -242,36 +241,40 @@ class Test_Experiment:
             print(f"Max size: {max(sample)}")
         
     
-    def plot_rectangle_size_distribution(self):
+    def plot_shrunk_histogram(self):
+        """
+     Plots a histogram of the shrunk rectangle sizes.
+     """
 
-        all_sizes = [
-            s["actual_size"]
-            for s in self.rectangle_stats
-        ]
+        all_sizes = [s["actual_size"] for s in self.rectangle_stats]
 
         if not all_sizes:
-            print("No rectangle data found.")
+            print("No shrunk rectangles found.")
             return
 
-        bin_size = 10
-        grouped_sizes = [
-            (size // bin_size) * bin_size
-            for size in all_sizes
+        plt.figure()
+        plt.hist(all_sizes, density= True)
+        plt.xlabel("Rectangle Sizes")
+        plt.ylabel("Probability")
+        plt.title("Distribution of Rectangle Sizes")
+        plt.show()
+
+        print(f"Total shrunk rectangles: {len(all_sizes)}")
+        print(f"Average shrunk size: {sum(all_sizes)/len(all_sizes):.2f}")
+        print(f"Min shrunk size: {min(all_sizes)}")
+        print(f"Max shrunk size: {max(all_sizes)}")
+
+    def plot_fp_ratio(self, defective_size):
+        tests = [h["tests so far"] for h in self.history]
+        ratios = [
+            h["false positives"] / defective_size
+            for h in self.history
         ]
 
-        from collections import Counter
-        size_counts = Counter(grouped_sizes)
-
-        sizes = sorted(size_counts.keys())
-        counts = [size_counts[size] for size in sizes]
-
-        plt.figure()
-        plt.bar(sizes, counts, width=bin_size * 0.9)
-        plt.xlabel(f"Rectangle Size (Grouped by {bin_size})")
-        plt.ylabel("Count")
-        plt.title("Full Rectangle Size Distribution")
-        plt.xticks(sizes)
-        plt.show()
+        plt.plot(tests, ratios, label=self.label)
+        plt.xlabel("Number of Tests")
+        plt.ylabel("FP / Defective Size")
+        plt.title("FP Ratio vs Number of Tests")
 
     def tests_until_fp_zero(self):
         """
@@ -292,278 +295,66 @@ class Test_Experiment:
         plt.ylabel("False Positives")
         plt.title("False positives vs Number of tests")
         plt.legend()
-
-
-
-def plot_fp_ratio_three_panel(
-    positions,
-    defective_sizes,
-    strategy="eliminate_negatives",
-    max_tests=50000
-):
+    
+def plot_fp_vs_defective_size(positions, defective_sizes, strategy="eliminate_negatives"):
 
     algorithm_configs = [
-        {"mode": "random", "title": "Algorithm 1 (Random)"},
-        {"mode": "rectangle", "title": "Algorithm 2 (Rectangle)"},
-        {"mode": "rectangle_200", "title": "Algorithm 3 (Rectangle 200)"}
+        {"mode": "random", "label": "Algorithm 1"},
+        {"mode": "rectangle", "label": "Algorithm 2"},
+        {"mode": "rectangle_200", "label": "Algorithm 3"}
     ]
 
-    fig, axes = plt.subplots(1, 3, figsize=(18, 5), sharey=True)
+    results = {config["label"]: [] for config in algorithm_configs}
 
-    for ax, config in zip(axes, algorithm_configs):
+    for d_size in defective_sizes:
 
-        for d_size in defective_sizes:
+        print(f"\nRunning defective size {d_size}")
 
-            model = create_model(size=100, num_ones=d_size, seed=1)
+        model = create_model(size=100, num_ones=d_size, seed=1)
 
-            infected_set = {
-                (r + 1, c + 1)
-                for r in range(100)
-                for c in range(100)
-                if model[r, c] == 1
-            }
+        infected_set = {
+            (r + 1, c + 1)
+            for r in range(100)
+            for c in range(100)
+            if model[r, c] == 1
+        }
 
-            exp = Test_Experiment(
-                positions=positions,
-                infected_set=infected_set,
-                test_size=300,
-                label=f"d={d_size}",
-                seed=1
-            )
-
-            exp.run(mode=config["mode"], strategy=strategy, max_tests=max_tests)
-
-            tests = [h["tests so far"] for h in exp.history]
-            ratios = [
-                h["false positives"] / d_size
-                for h in exp.history
-            ]
-
-            ax.plot(tests, ratios, label=f"d={d_size}")
-
-        ax.set_title(config["title"])
-        ax.set_xlabel("Number of Tests")
-        ax.legend()
-
-    axes[0].set_ylabel("FP / Defective Size")
-
-    plt.suptitle("FP Ratio vs Number of Tests")
-    plt.tight_layout()
-    plt.show()
-
-def run_full_experiment_suite(positions, defective_sizes, test_size):
-
-    results_summary = []
-    all_histories = {}
-
-    algorithm_modes = {
-        "Algorithm 1 (Random)": "random",
-        "Algorithm 2 (Rectangle)": "rectangle",
-        "Algorithm 3 (Rectangle200)": "rectangle_200"
-    }
-
-    for algo_name, mode in algorithm_modes.items():
-
-        for d_size in defective_sizes:
-
-            model = create_model(size=100, num_ones=d_size, seed=1)
-
-            infected_set = {
-                (r + 1, c + 1)
-                for r in range(100)
-                for c in range(100)
-                if model[r, c] == 1
-            }
+        for config in algorithm_configs:
 
             exp = Test_Experiment(
                 positions=positions,
                 infected_set=infected_set,
-                test_size=test_size,
-                label=f"{algo_name}_d{d_size}",
+                test_size=200,
+                label=config["label"],
                 seed=1
             )
 
-            exp.run(mode=mode, strategy="eliminate_negatives", max_tests=50000)
+            exp.run(mode=config["mode"], strategy=strategy)
 
-            results_summary.append({
-                "Algorithm": algo_name,
-                "Defective Size": d_size,
-                "Test Size": test_size,
-                "Total Tests": len(exp.tests),
-                "Tests to FP=0": exp.tests_until_fp_zero(),
-                "Final FP": exp.history[-1]["false positives"],
-                "Final FN": exp.history[-1]["false negatives"],
-                "Final Candidates": len(exp.candidates)
-            })
+            tests_needed = exp.tests_until_fp_zero()
 
-            all_histories[f"{algo_name}_d{d_size}"] = pd.DataFrame(exp.history)
+            results[config["label"]].append(tests_needed)
 
-    return results_summary, all_histories
+    # Plotting
+    plt.figure()
 
-def save_full_experiment_to_excel(summary, histories, filename="Full_Group_Testing_Results.xlsx"):
+    for label, values in results.items():
+        plt.plot(defective_sizes, values, marker='o', label=label)
 
-    if os.path.exists(filename):
-        os.remove(filename)
+    plt.xlabel("Defective Set Size")
+    plt.ylabel("Tests until FP = 0")
+    plt.title("Tests Needed for False Positives to Reach Zero")
+    plt.legend()
+    plt.show()    
 
-    with pd.ExcelWriter(filename, engine="openpyxl") as writer:
+defective_sizes = [25, 50, 75, 100]
 
-        df_summary = pd.DataFrame(summary)
-        df_summary.to_excel(writer, sheet_name="Summary", index=False)
-
-        for name, df in histories.items():
-
-            sheet_name = name.replace(" ", "_")[:31]
-
-            df["FP_ratio"] = df["false positives"] / df["false positives"].max()
-
-            df.to_excel(writer, sheet_name=sheet_name, index=False)
-
-    print(f"\n✅ Full experiment saved to {filename}")
-
-def save_summary_append(summary, filename="Testing_Results.xlsx"):
-
-    import pandas as pd
-    import os
-
-    df_new = pd.DataFrame(summary)
-
-    # Append if file exists
-    if os.path.exists(filename):
-        df_old = pd.read_excel(filename, sheet_name="Raw_Data")
-        df = pd.concat([df_old, df_new], ignore_index=True)
-    else:
-        df = df_new
-    
-    df.columns = df.columns.map(str)
-    df.columns = df.columns.str.replace(" ", "_")
-    df.columns = df.columns.str.replace("=", "")
-
-    df = df.loc[:, ~df.columns.duplicated()]
-
-
-    print(df.columns)
-
-    # --------- Create clean comparison tables ---------
-
-    table_alg_def = df.pivot_table(
-        values="Tests_to_FP0",
-        index="Defective_Size",
-        columns="Algorithm",
-        aggfunc="mean"
-    )
-
-    table_alg_test = df.pivot_table(
-        values="Tests_to_FP0",
-        index="Test_Size",
-        columns="Algorithm",
-        aggfunc="mean"
-    )
-
-    table_fp = df.pivot_table(
-        values="Final_FP",
-        index="Defective_Size",
-        columns="Algorithm",
-        aggfunc="mean"
-    )
-
-    table_alg_def = table_alg_def.sort_index()
-    table_alg_test = table_alg_test.sort_index()
-    table_fp = table_fp.sort_index()
-
-    table_alg_def = table_alg_def.round(2)
-    table_alg_test = table_alg_test.round(2)
-    table_fp = table_fp.round(2)
-
-    # Add averages
-    table_alg_def.loc["Average"] = table_alg_def.mean()
-    table_alg_test.loc["Average"] = table_alg_test.mean()
-
-    # --------- Write to Excel ---------
-
-    with pd.ExcelWriter(filename, engine="openpyxl") as writer:
-
-        df.to_excel(writer, sheet_name="Raw_Data", index=False)
-
-        table_alg_def.to_excel(writer, sheet_name="Algorithm_vs_Defective")
-
-        table_alg_test.to_excel(writer, sheet_name="Algorithm_vs_TestSize")
-
-        table_fp.to_excel(writer, sheet_name="False_Positive_Comparison")
-
-    print("✅ Clean experiment tables saved.")
-
-
-exp_random = Test_Experiment(
+plot_fp_vs_defective_size(
     positions=positions,
-    infected_set=S,
-    test_size=150,
-    label="Algorithm 1",
-    seed=1
+    defective_sizes=defective_sizes,
+    strategy="eliminate_negatives"
 )
 
-#exp_random.run(mode="random", strategy="positive_minus_negative")
-exp_random.run(mode="random", strategy="positive_minus_negative")
-exp_random.print_progress()
-exp_random.summary()
-
-exp_rectangle = Test_Experiment(
-    positions=positions,
-    infected_set=S,
-    test_size=150,
-    label="Algorithm 2",
-    seed=1
-)
-
-exp_rectangle.run(mode="rectangle", strategy="positive_minus_negative")
-exp_rectangle.summary()
-exp_rectangle.get_shrunk_sizes()
-##exp_rectangle.plot_rectangle_size_distribution()
-
-exp_rectangle_200 = Test_Experiment(
-    positions=positions,
-    infected_set=S,
-    test_size=150,
-    label="Algorithm 3",
-    seed=1
-)
-
-exp_rectangle_200.run(mode="rectangle_200", strategy="positive_minus_negative")
-exp_rectangle_200.summary() 
-exp_rectangle_200.print_progress()
-
-# For Algorithm 1 (Random)
-res_random = exp_random.tests_until_fp_zero()
-print(f"Algorithm 1 reached FP=0 at test: {res_random}")
-
-# For Algorithm 2 (Rectangle)
-res_rectangle = exp_rectangle.tests_until_fp_zero()
-print(f"Algorithm 2 reached FP=0 at test: {res_rectangle}")
-
-# For Algorithm 3 (Rectangle 200)
-res_rect_200 = exp_rectangle_200.tests_until_fp_zero()
-print(f"Algorithm 3 reached FP=0 at test: {res_rect_200}")
 
 
-
-if __name__ == "__main__":
-
-    defective_sizes = [25, 50, 75, 100]
-    test_sizes = [100, 150, 200, 250, 300, 350, 400]
-
-    plot_fp_ratio_three_panel(
-        positions=positions,
-        defective_sizes=defective_sizes,
-        strategy="eliminate_negatives"
-    )
-    for test_size in test_sizes:
-
-        print(f"\nRunning experiments for test size {test_size}")
-
-        summary, histories = run_full_experiment_suite(
-            positions,
-            defective_sizes,
-            test_size
-        )
-
-        save_summary_append(summary)
 
