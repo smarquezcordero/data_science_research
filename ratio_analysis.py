@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import random
@@ -154,7 +155,7 @@ class Test_Experiment:
 
         return rectangle
     
-    def run(self, mode = "random", strategy="positive_minus_negative",max_tests = 100000):
+    def run(self, mode = "random", strategy="eliminate_negatives",max_tests = 100000):
             if self.seed is not None:
                   np.random.seed(self.seed)
 
@@ -184,8 +185,17 @@ class Test_Experiment:
                 self.results.append(result)
 
                 # Update candidates using the eliminate_negatives logic
-                if result == "negative":
-                    self.candidates -= set(test)
+                if strategy == "eliminate_negatives":
+                    if result == "negative":
+                        self.candidates -= set(test)
+
+                elif strategy == "positive_minus_negative":
+                    if result == "negative":
+                        self.negative_points.update(test)
+                    else:
+                        self.positive_points.update(test)
+
+                    self.candidates = self.positive_points - self.negative_points
 
                 false_positives = self.candidates - self.infected_set
                 false_negatives = self.infected_set - self.candidates
@@ -200,9 +210,8 @@ class Test_Experiment:
                     "fp_ratio": fp_ratio
                 })
 
-                # New Stop Condition: stop when ratio fp < 2
-                if fp_ratio < 2:
-                    # Optional: print(f"Target reached: FP Ratio {fp_ratio:.2f} at test {t}")
+                # New Stop Condition: stop when ratio...
+                if fp_ratio < 1.5:
                     break
             
                 if t >= max_tests:
@@ -223,6 +232,7 @@ class Test_Experiment:
             print(f"TP set               : {self.compare_candidates()}")
             print(f"Final FP             : {self.history[-1]['false positives']}")
             print(f"Final FN             : {self.history[-1]['false negatives']}")
+            
 
     def print_progress(self, step=500):
         print("\nProgress snapshot:")
@@ -346,10 +356,10 @@ class Test_Experiment:
         plt.xticks(sizes)
         plt.show()
 
-    def tests_until_ratio_target(self, target=2.0):
-        """
-        Returns the first test number where FP ratio < target.
-        """
+    def tests_until_ratio_target(self, target=1.5):
+        
+        ##Returns the first test number where FP ratio < target.
+        
         for h in self.history:
             if h["fp_ratio"] < target:
                 return h["tests so far"]
@@ -463,7 +473,7 @@ def plot_fp_ratio_vs_testsize(df):
 
 def plot_combined_analysis(df):
 
-    df["FP_Ratio"] = df["Final_FP"] / df["Defective_Size"]
+    df["FP_Ratio"] = df["Final_FP_Ratio"] 
 
     algorithms = df["Algorithm"].unique()
 
@@ -570,7 +580,7 @@ def run_full_experiment_suite(positions, defective_sizes, test_size):
                 "Defective Size": d_size,
                 "Test Size": test_size,
                 "Total Tests": len(exp.tests),
-                "Tests_to_Ratio_2": exp.tests_until_ratio_target(2.0),
+                "Tests_to_Ratio_1_5": exp.tests_until_ratio_target(1.5),
                 "Final FP": exp.history[-1]["false positives"],
                 "Final FN": exp.history[-1]["false negatives"],
                 "Final_FP_Ratio": exp.history[-1]["fp_ratio"]
@@ -580,7 +590,7 @@ def run_full_experiment_suite(positions, defective_sizes, test_size):
 
     return results_summary, all_histories
 
-def save_summary_append(summary, filename="until_ratio2.xlsx"):
+def save_summary_append(summary, filename="until_ratio1.5.xlsx"):
 
     import pandas as pd
     import os
@@ -617,14 +627,14 @@ def save_summary_append(summary, filename="until_ratio2.xlsx"):
     # --------- Create clean comparison tables ---------
 
     table_alg_def = df.pivot_table(
-        values="Tests_to_Ratio_2",
+        values="Tests_to_Ratio_1_5",
         index="Defective_Size",
         columns="Algorithm",
         aggfunc="mean"
     )
 
     table_alg_test = df.pivot_table(
-        values="Tests_to_Ratio_2",
+        values="Tests_to_Ratio_1_5",
         index="Test_Size",
         columns="Algorithm",
         aggfunc="mean"
@@ -763,6 +773,9 @@ exp_rectangle_200.print_progress()
 
 if __name__ == "__main__":
 
+    if os.path.exists("until_ratio1.5.xlsx"):
+        os.remove("until_ratio1.5.xlsx")
+
     defective_sizes = [25, 50, 75, 100]
     test_sizes = [25, 50, 75, 100, 150, 200,250,300,350,400]
 
@@ -783,7 +796,7 @@ if __name__ == "__main__":
 
         save_summary_append(summary)
 
-    df = pd.read_excel("until_ratio2.xlsx", sheet_name="Raw_Data")
+    df = pd.read_excel("until_ratio1.5.xlsx", sheet_name="Raw_Data")
     ##plot_defective_vs_tests(df)
     ##plot_testsize_vs_tests(df)
     ##plot_fp_ratio_vs_testsize(df)
