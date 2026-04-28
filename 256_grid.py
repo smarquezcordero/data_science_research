@@ -160,14 +160,17 @@ class Test_Experiment:
                 false_positives = self.candidates - self.infected_set
                 false_negatives = self.infected_set - self.candidates
             
-                # Calculate FP Ratio (Ratio of extra items to real defective items)
-                ##fp_ratio = len(false_positives) / num_defective if num_defective > 0 else 0
+                ## Calculate FP Ratio (Ratio of extra items to real defective items)
+                
+                fp_ratio_0 = len(false_positives) / num_defective if num_defective > 0 else 0
+                
                 fp_ratio = len(self.candidates) / num_defective if num_defective > 0 else 0
                 self.history.append({
                     "tests so far": t,
                     "false positives": len(false_positives),
                     "false negatives": len(false_negatives),
-                    "fp_ratio": fp_ratio
+                    "fp_ratio": fp_ratio,
+                    "fp_ratio_0": fp_ratio_0
                 })
 
                 # New Stop Condition: stop when ratio...
@@ -259,6 +262,47 @@ def plot_combined_analysis(df):
         plt.tight_layout()
         plt.show()
 
+def plot_fp_ratio_vs_tests(all_histories):
+
+    plt.figure(figsize=(10,6))
+
+    for key, df in all_histories.items():
+        plt.plot(
+            df["tests so far"],
+            df["fp_ratio"],
+            label=key
+        )
+
+    plt.axhline(y=2, color="black", linestyle="--", label="Stopping condition = 2")
+
+    plt.xlabel("Number of Tests")
+    plt.ylabel("FP Ratio = Candidates / Defective Size")
+    plt.title("FP Ratio Convergence Over Tests")
+    plt.legend(fontsize=7)
+    plt.grid(True)
+    plt.show()
+
+def plot_best_test_size(df):
+
+    plt.figure(figsize=(10,6))
+
+    for algo in df["Algorithm"].unique():
+        subset = df[df["Algorithm"] == algo]
+
+        plt.plot(
+            subset["Test_Size"],
+            subset["Total_Tests"],
+            marker="o",
+            label=algo
+        )
+
+    plt.xlabel("Test Size")
+    plt.ylabel("Total Tests Needed to Stop")
+    plt.title("Best Test Size by Algorithm")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
 def plot_by_test_size(all_histories):
 
     for test_size in [32, 64, 96, 128, 160, 192, 224]:
@@ -283,7 +327,7 @@ def plot_fp_ratio_vs_tests(all_histories):
 
     for key, df in all_histories.items():
 
-        df_filtered = df[df["fp_ratio"] <= 2]   
+        df_filtered = df 
 
         plt.plot(
             df_filtered["fp_ratio"],
@@ -295,9 +339,31 @@ def plot_fp_ratio_vs_tests(all_histories):
 
     plt.xlabel("FP Ratio (1 to 2)")
     plt.ylabel("Total Tests")
-    plt.title("Final Convergence Region")
+    plt.title("FP Ratio Convergence ")
     plt.legend(fontsize=8)
     plt.grid()
+    plt.show()
+
+def plot_test_size_bar_comparison(df):
+
+    pivot = df.pivot(
+        index="Test_Size",
+        columns="Algorithm",
+        values="Total_Tests"
+    )
+
+    ax = pivot.plot(kind="bar", figsize=(10,6))
+
+    # Highlight failures
+    for i, row in df.iterrows():
+        if row["Final_FP_Ratio"] >= 2:
+            print(f"⚠️ No convergence: {row['Algorithm']} t={row['Test_Size']}")
+
+    plt.xlabel("Test Size")
+    plt.ylabel("Total Tests Needed")
+    plt.title("Tests Needed to Reach FP Ratio < 2")
+    plt.xticks(rotation=0)
+    plt.grid(axis="y")
     plt.show()
 
 def run_full_experiment_suite(positions, infected_set, test_size):
@@ -324,16 +390,53 @@ def run_full_experiment_suite(positions, infected_set, test_size):
 
         results_summary.append({
             "Algorithm": algo_name,
+            "Defective_Size": len(infected_set),
             "Test_Size": test_size,
             "Total_Tests": len(exp.tests),
             "Final_FP": exp.history[-1]["false positives"],
             "Final_FN": exp.history[-1]["false negatives"],
-            "Final_FP_Ratio": exp.history[-1]["fp_ratio"]
+            "Final_FP_Ratio": exp.history[-1]["fp_ratio"],
+            "Stopped": exp.history[-1]["fp_ratio"] < 2
         })
 
         all_histories[f"{algo_name}_t{test_size}"] = pd.DataFrame(exp.history)
 
     return results_summary, all_histories
+
+def compare_best_test_sizes(df):
+
+    print("\nBest Test Size for Each Algorithm")
+    print("-" * 50)
+
+    best_rows = df.loc[df.groupby("Algorithm")["Total_Tests"].idxmin()]
+
+    print(best_rows[[
+        "Algorithm",
+        "Test_Size",
+        "Total_Tests",
+        "Final_FP",
+        "Final_FN",
+        "Final_FP_Ratio"
+    ]])
+
+    return best_rows
+
+def plot_test_size_bar_comparison(df):
+
+    pivot = df.pivot(
+        index="Test_Size",
+        columns="Algorithm",
+        values="Total_Tests"
+    )
+
+    pivot.plot(kind="bar", figsize=(10,6))
+
+    plt.xlabel("Test Size")
+    plt.ylabel("Total Tests Needed")
+    plt.title("Comparison of Test Sizes for Both Algorithms")
+    plt.xticks(rotation=0)
+    plt.grid(axis="y")
+    plt.show()
 
 def save_summary_append(summary, filename="grid_256_ratio_2.xlsx"):
 
@@ -450,7 +553,10 @@ if __name__ == "__main__":
         all_histories_total.update(histories)
         
     df = pd.DataFrame(all_summaries)
-
+    plot_best_test_size(df)
+    save_summary_append(all_summaries, filename="grid_256_ratio_2.xlsx")
+    best_results = compare_best_test_sizes(df)
+    plot_test_size_bar_comparison(df)
     # Plot new requirement
     plot_fp_ratio_vs_tests(all_histories_total)
     plot_by_test_size(all_histories_total)
