@@ -798,59 +798,48 @@ def plot_all_test_sizes(summary_df):
 
 if __name__ == "__main__":
     
-    test_sizes = [32, 64, 96, 128, 160, 192, 224]
+    test_sizes = [16, 32, 64, 96, 128, 160, 192, 224]
+    grid_size = 256
+    defective_size = 32
 
-    # Create ONE model (fixed)
-    model = create_model(size=256, num_ones=32, seed=1)
+    ##test_sizes = list(range(16, 225, 4))
+
+    fp_thresholds = [round(x, 1) for x in np.arange(1.0, 2.01, 0.1)]
+
+    repetitions = 1
+    max_tests = 80000
+
+    model = create_model(size=grid_size, num_ones=defective_size, seed=1)
+
+    positions = [
+        (r + 1, c + 1)
+        for r in range(grid_size)
+        for c in range(grid_size)
+    ]
 
     infected_set = {
         (r + 1, c + 1)
-        for r in range(256)
-        for c in range(256)
+        for r in range(grid_size)
+        for c in range(grid_size)
         if model[r, c] == 1
     }
 
-    all_summaries = []
-    all_histories_total = {}
-
-    for test_size in test_sizes:
-
-        print(f"\nRunning test size {test_size}")
-
-        summary, histories = run_full_experiment_suite(
-            positions,
-            infected_set,
-            test_size
-        )
-
-        all_summaries.extend(summary)
-        all_histories_total.update(histories)
-        
-    df = pd.DataFrame(all_summaries)
-    plot_best_test_size(df)
-    save_summary_append(all_summaries, filename="grid256_size_32.xlsx")
-    best_results = compare_best_test_sizes(df)
-    plot_test_size_bar_comparison(df)
-    
-    # Plot new requirement
-    plot_fp_ratio_vs_tests(all_histories_total)
-    plot_by_test_size(all_histories_total)
-
-    fp_thresholds = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0]
-
-    test_size_for_threshold_plot = 128
-
-    df_threshold = run_fp_threshold_experiment(
+    raw_df, summary_df, best_df, best_inaccuracy_df = run_threshold_grid_experiment(
         positions=positions,
         infected_set=infected_set,
-        test_size=test_size_for_threshold_plot,
+        test_sizes=test_sizes,
         fp_thresholds=fp_thresholds,
-        repetitions=3,
-        max_tests=50000
+        repetitions=repetitions,
+        max_tests=max_tests
     )
 
-    print(df_threshold)
+    save_threshold_results_to_excel(
+        raw_df,
+        summary_df,
+        best_df,
+        best_inaccuracy_df,
+        filename="grid256_k32_threshold_analysis.xlsx"
+    )
 
-    df_threshold.to_excel("fp_threshold_results.xlsx", index=False)
-
-    plot_tests_vs_fp_threshold(df_threshold)
+    plot_best_tests_vs_fp_threshold(best_df)
+    plot_all_test_sizes(summary_df)
